@@ -1,0 +1,61 @@
+#version 430
+
+#if !defined HORIZONTAL && !defined VERTICAL
+Error! Vertical or HORIZONTAL must be defined
+#endif
+
+#if !defined FORMAT
+Error! Image format must be defined
+#endif
+
+#ifndef KERNEL_RADIUS
+#define KERNEL_RADIUS 3
+#endif
+
+#define ACTUAL_SAMPLE_COUNT ((KERNEL_RADIUS / 2) + 1)
+
+//Note: Every two offset after the first element (so 1-2, 3-4, etc.) are combined into one float, to take advantage of linear sampling
+//More details here: https://www.rastergrid.com/blog/2010/09/efficient-gaussian-blur-with-linear-sampling/
+#if KERNEL_RADIUS == 5  //uses coefficients from the 13rd row (index 12 on the above link) of the pascal triangle, but with only the center values
+uniform float offset[ACTUAL_SAMPLE_COUNT] = float[](0.0, 1.3846153846, 3.2307692308);
+uniform float weight[ACTUAL_SAMPLE_COUNT] = float[](0.2270270270, 0.3162162162, 0.0702702703);
+
+#elif KERNEL_RADIUS == 3  //uses coefficients from 7th row (index 6 on the above link) of the pascal triangle 1 6 15 20 15 6, but without the edge values (1s), with the sum adjusted
+uniform float offset[ACTUAL_SAMPLE_COUNT] = float[](0.0, 1.285714286);
+uniform float weight[ACTUAL_SAMPLE_COUNT] = float[](0.322580645, 0.338709677);
+
+#else
+Error! not supported Kernel radius!
+#endif
+
+layout(local_size_x = 32, local_size_y = 32) in;
+layout(binding = 0) uniform sampler2D sourceImage;
+layout(FORMAT, binding = 1) uniform image2D destImage;
+
+void main() {
+  vec2 tex_size = textureSize(sourceImage, 0);
+  ivec2 pixel_id = ivec2(gl_GlobalInvocationID.xy);
+  vec2 uv_coords = pixel_id / (tex_size - ivec2(1));
+
+  if(any(greaterThanEqual(uv_coords, tex_size)))
+  {
+    return;
+  }
+
+  vec4 result = vec4(0.0, 0.0, 0.0, 0.0);
+
+  #if defined(HORIZONTAL)
+  vec2 increment = vec2(1,0) / tex_size;
+  #elif defined(VERTICAL)
+  vec2 increment = vec2(0,1) / tex_size;
+  #endif
+
+  result = texture(sourceImage, uv_coords + offset[0] * increment) * weight[0];
+  for (int i = 1; i < ACTUAL_SAMPLE_COUNT; ++i)
+  {
+    result += texture(sourceImage, uv_coords + offset[i] * increment) * weight[i];
+    result += texture(sourceImage, uv_coords - offset[i] * increment) * weight[i];
+  }
+  
+  imageStore(destImage, pixel_id, result);
+}

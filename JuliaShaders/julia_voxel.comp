@@ -1,0 +1,73 @@
+#version 430 core
+
+#pragma include("julia_common")
+
+layout(local_size_x = BlockSizeX, local_size_y = BlockSizeY, local_size_z = BlockSizeZ) in;
+
+layout (std430, binding=2) writeonly buffer voxels
+{
+  uint VoxelData[];
+};
+
+uniform float u_resolution_f;
+uniform int u_resolution_i;
+uniform float u_timeCoord;
+uniform int u_timeCoordIndex;
+uniform int u_iterations;
+uniform vec3 u_pan;
+uniform float u_zoom;
+
+shared uint voxel_block_data;
+
+bool GetTestPattern(vec3 coords)
+{
+  return (length(coords) > 1.3 && length(coords) < 1.6 && coords.x < 0.0) || (all(lessThan(abs(coords), vec3(1.9))) && all(greaterThan(abs(coords), vec3(1.4))));
+}
+
+bool GetBlockGridPattern(vec3 coords)
+{
+  return gl_LocalInvocationID == uvec3(0);
+}
+
+uint GetBlockId()
+{
+  return gl_WorkGroupID.x * gl_NumWorkGroups.y * gl_NumWorkGroups.z + gl_WorkGroupID.y * gl_NumWorkGroups.z + gl_WorkGroupID.z;
+}
+
+uint GetSubBlockId()
+{
+  return gl_LocalInvocationID.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z + gl_LocalInvocationID.y * gl_WorkGroupSize.z + gl_LocalInvocationID.z;
+}
+
+#define IsWorkgroupController (gl_LocalInvocationIndex == 0u)
+
+void main() {
+  if (IsWorkgroupController)
+  {
+    voxel_block_data = 0;
+  }
+  
+  const float voxelSize = FractalRenderSize / u_resolution_f;
+  const float halfVoxelSize = voxelSize * 0.5;
+  const vec3 normed_coordinates = vec3(gl_GlobalInvocationID) / (u_resolution_f - 1.0);  //normed coordinates inside the box between [0, 1]
+  const vec3 voxel_coords = ( normed_coordinates * (FractalRenderSize - voxelSize) - (FractalRenderSize - voxelSize) * 0.5 + vec3(halfVoxelSize)) * u_zoom - u_pan;
+  
+  const bool isPartOfSet = GetJulia4D(GetJuliaCoords(voxel_coords, u_timeCoord, u_timeCoordIndex), u_iterations);
+  //const bool isPartOfSet = GetTestPattern(voxel_coords);
+  //const bool isPartOfSet = GetBlockGridPattern(voxel_coords);
+
+  const uint bitIndex = GetSubBlockId();
+  const uint calculationResult = 1 << bitIndex;
+
+  barrier(); //Wait for workgroup controller to zero the 'voxel_block_data' data
+
+  if ( isPartOfSet )
+    atomicOr(voxel_block_data, calculationResult); 
+
+  barrier(); //Wait for all workgroup members to finish adding their calculation result
+
+  if (IsWorkgroupController)
+  {
+    VoxelData[GetBlockId()] = voxel_block_data;
+  }
+}

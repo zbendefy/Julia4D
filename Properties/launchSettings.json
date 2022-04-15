@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Julia4D": {
+      "commandName": "Project",
+      "workingDirectory": "$(ProjectDir)"
+    }
+  }
+}

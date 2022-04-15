@@ -121,12 +121,12 @@ namespace Julia4D
             processor.AddCommand(new CreateIncludableShaderCommand("noise", new AssetUri("asset:///Shaders/noise.shader")));
 
             List<AssetUri> skyboxTexturelist = new List<AssetUri>();
-            skyboxTexturelist.Add(new AssetUri("asset:///Assets/Skybox/posx.png"));
-            skyboxTexturelist.Add(new AssetUri("asset:///Assets/Skybox/negx.png"));
-            skyboxTexturelist.Add(new AssetUri("asset:///Assets/Skybox/posy.png"));
-            skyboxTexturelist.Add(new AssetUri("asset:///Assets/Skybox/negy.png"));
-            skyboxTexturelist.Add(new AssetUri("asset:///Assets/Skybox/posz.png"));
-            skyboxTexturelist.Add(new AssetUri("asset:///Assets/Skybox/negz.png"));
+            skyboxTexturelist.Add(new AssetUri("asset:///Assets/skybox/posx.png"));
+            skyboxTexturelist.Add(new AssetUri("asset:///Assets/skybox/negx.png"));
+            skyboxTexturelist.Add(new AssetUri("asset:///Assets/skybox/posy.png"));
+            skyboxTexturelist.Add(new AssetUri("asset:///Assets/skybox/negy.png"));
+            skyboxTexturelist.Add(new AssetUri("asset:///Assets/skybox/posz.png"));
+            skyboxTexturelist.Add(new AssetUri("asset:///Assets/skybox/negz.png"));
             processor.AddCommand(new LoadCubeTextureCommand("skybox_texture", skyboxTexturelist));
 
             processor.AddCommand(new CreateBuffer("julia4DResult", (long)resolution * resolution * (resolution / 8)));
